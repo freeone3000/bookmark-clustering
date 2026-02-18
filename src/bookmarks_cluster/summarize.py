@@ -1,3 +1,13 @@
+from typing import NamedTuple
+
+import psycopg
+
+from .bookmark_types import Bookmark
+
+class Summary(NamedTuple):
+    url: str
+    title: str
+    summary: str
 
 def _llm_extract(html: str) -> str:
     """
@@ -44,3 +54,18 @@ def _llm_extract(html: str) -> str:
     except Exception as e:
         logging.warning(f"Failed to extract content using LM Studio: {e}")
         return ""
+
+def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list[Summary]:
+    from .db import get_summaries, write_summary
+
+    cached_summaries = get_summaries(conn)
+    summaries = []
+    for bookmark in bookmarks:
+        if bookmark.content is not None: # skip missing and failed
+            if bookmark.url in cached_summaries:
+                summary = cached_summaries[bookmark.url]
+            else:
+                summary = _llm_extract(bookmark.content)
+                write_summary(bookmark.url, summary, conn)
+            summaries.append(Summary(url=bookmark.url, title=bookmark.title, summary=summary))
+    return summaries
