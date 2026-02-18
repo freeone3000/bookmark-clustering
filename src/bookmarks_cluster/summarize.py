@@ -33,6 +33,11 @@ def llm_extract(html: str) -> str:
         )
 
         extracted_content = response.choices[0].message.content
+
+        # find the first double newline after the </think> tag, if it exists, and remove everything before that to eliminate "thinking" text
+        start_idx = extracted_content.index("</think>")+len("</think>") if "</think>" in extracted_content else 0
+        extracted_content = extracted_content[extracted_content.find("\n\n", start_idx)+2:]
+
         logging.info(f"Successfully extracted content using LM Studio")
         return extracted_content
 
