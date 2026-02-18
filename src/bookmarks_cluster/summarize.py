@@ -1,6 +1,7 @@
 from typing import NamedTuple
 
 import psycopg
+from .llm import load as llm_load
 
 from .bookmark_types import Bookmark
 
@@ -21,8 +22,8 @@ def _llm_extract(html: str) -> str:
     try:
         client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
-        # Truncate HTML to prevent token overflow (estimate ~4 chars per token); max length found was 4435132
-        max_chars = 130_000 * 4
+        # Truncate HTML to prevent token overflow; max length found was 4435132
+        max_chars = 10_100
         truncated_html = html[:max_chars]
         if len(html) > max_chars:
             truncated_html += "\n[... content truncated ...]"
@@ -52,8 +53,13 @@ def _llm_extract(html: str) -> str:
         return extracted_content
 
     except Exception as e:
-        logging.warning(f"Failed to extract content using LM Studio: {e}")
-        return ""
+        logging.error(f"Failed to extract content using LM Studio: {e}")
+        ex_msg = str(e)
+        if "The model has crashed" in ex_msg or "No models loaded" in ex_msg:
+            llm_load()
+            return _llm_extract(html)
+        else:
+            raise e
 
 def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list[Summary]:
     from .db import get_summaries, write_summary
@@ -66,6 +72,7 @@ def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list
                 summary = cached_summaries[bookmark.url]
             else:
                 summary = _llm_extract(bookmark.content)
-                write_summary(bookmark.url, summary, conn)
+                if len(summary) > 0:
+                    write_summary(bookmark.url, summary, conn)
             summaries.append(Summary(url=bookmark.url, title=bookmark.title, summary=summary))
     return summaries
