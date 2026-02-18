@@ -23,7 +23,8 @@ def _llm_extract(html: str) -> str:
         client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
         # Truncate HTML to prevent token overflow; max length found was 4435132
-        max_chars = 10_100
+        # TODO actually math this
+        max_chars = 8_500 # must also include truncation, system context, and the prompt below.
         truncated_html = html[:max_chars]
         if len(html) > max_chars:
             truncated_html += "\n[... content truncated ...]"
