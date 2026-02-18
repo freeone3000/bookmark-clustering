@@ -1,6 +1,6 @@
 import sqlite3
+import logging
 
-import selenium.common.exceptions
 from selenium import webdriver
 
 from .bookmark_types import Bookmark
@@ -39,16 +39,23 @@ def _selenium_stealth_get_contents(url: str) -> str | None:
 
 def _fetch_bookmark_content(bookmark: Bookmark, conn: sqlite3.Connection) -> str | None:
     import datetime
-
-    # initialize here to force writeback after *every* entry
+    from urllib.parse import urlsplit
 
     url = bookmark.url
+    # skip localhost
+    (_, netloc, _, _, _) = urlsplit(url)
+    if netloc == 'localhost' or netloc == '::1' or netloc.startswith('127.'):
+        return None
+
+    # start fetching remote
     should_refetch = False
     content = None
     # check cache for refetch
     cursor = conn.cursor()
     cursor.execute("SELECT content, last_fetched FROM link_cache WHERE url = ? LIMIT 1", (url,))
     row = cursor.fetchone()
+    cursor.close()
+
     if row is None:
         should_refetch = True
     else:
@@ -57,14 +64,23 @@ def _fetch_bookmark_content(bookmark: Bookmark, conn: sqlite3.Connection) -> str
         if last_fetched_dt < one_month_ago:
             should_refetch = True
     if should_refetch:
+        # noinspection PyBroadException  ...we want to catch everything to prevent a crash yeah
         try:
+            logging.log(logging.INFO, f"Fetching {bookmark.url}...")
             content = _selenium_stealth_get_contents(bookmark.url)
             now = datetime.datetime.now()
+
+            cursor = conn.cursor()
             cursor.execute("INSERT INTO link_cache (url, content, last_fetched) VALUES (?, ?, ?) ON CONFLICT(url) DO UPDATE SET content = ?, last_fetched = ?",
                        (url, content, now, content, now))
             cursor.execute("COMMIT")
-        except selenium.common.exceptions.WebDriverException:  # underlying error in fetch
+            cursor.close()
+
+            logging.log(logging.INFO, f"Fetched {bookmark.title} from {bookmark.url}")
+        except:  # underlying error in fetch
             content = None
+    else:
+        logging.log(logging.INFO, f"Fetched {bookmark.title} from CACHE")
     return content
 
 def fetch_bookmark_contents(bookmarks: list[Bookmark]) -> list[Bookmark]:

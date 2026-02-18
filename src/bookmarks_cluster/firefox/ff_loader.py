@@ -22,7 +22,7 @@ def _load_from_sqlite(db_path: str) -> list[Bookmark]:
     cursor = conn.cursor()
     try:
         # folders have b.fk IS NULL; we select them out due to confidence in our clustering approach
-        cursor.execute("SELECT b.guid, b.title, url FROM moz_bookmarks AS b JOIN moz_places ON b.fk = moz_places.id WHERE b.fk IS NOT NULL")
+        cursor.execute("SELECT b.guid, b.title, url FROM moz_bookmarks AS b JOIN moz_places ON b.fk = moz_places.id WHERE b.fk IS NOT NULL ORDER BY b.guid DESC")
         bookmarks = [Bookmark(row[0], row[1], row[2], _load_ff_content_from_cache(db_path, row[2])) for row in cursor.fetchall()]
     except sqlite3.OperationalError as e:
         raise FirefoxLoadError("Could not open database; is firefox running?") from e
