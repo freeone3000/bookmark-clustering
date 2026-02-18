@@ -1,23 +1,29 @@
-from typing import List, NamedTuple
+import sqlite3
+
+from ..bookmark_types import Bookmark
 
 class FirefoxLoadError(Exception):
     pass
 
+def _load_ff_content_from_cache(db_path: str, url: str) -> str | None:
+    from pathlib import Path
+    from .ff_cache import Cache2
 
-class Bookmark(NamedTuple):
-    guid: str
-    title: str
-    url: str
+    profile_dir = Path(db_path).parent
+    try:
+        cache = Cache2(profile_dir)
+        # TODO load cache!
+    except FileNotFoundError:
+        return None
 
-def _load_from_sqlite(db_path: str) -> List[Bookmark]:
-    import sqlite3
 
+def _load_from_sqlite(db_path: str) -> list[Bookmark]:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
         # folders have b.fk IS NULL; we select them out due to confidence in our clustering approach
         cursor.execute("SELECT b.guid, b.title, url FROM moz_bookmarks AS b JOIN moz_places ON b.fk = moz_places.id WHERE b.fk IS NOT NULL")
-        bookmarks = [Bookmark(row[0], row[1], row[2]) for row in cursor.fetchall()]
+        bookmarks = [Bookmark(row[0], row[1], row[2], _load_ff_content_from_cache(db_path, row[2])) for row in cursor.fetchall()]
     except sqlite3.OperationalError as e:
         raise FirefoxLoadError("Could not open database; is firefox running?") from e
     finally:
@@ -25,7 +31,7 @@ def _load_from_sqlite(db_path: str) -> List[Bookmark]:
 
     return bookmarks
 
-def load_bookmarks() -> List[Bookmark]:
+def load_bookmarks() -> list[Bookmark]:
     import platform
 
     if platform.system() == "Darwin":

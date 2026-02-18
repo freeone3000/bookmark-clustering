@@ -1,6 +1,10 @@
 [project]
 name = "bookmark-cluster"
 version = "0.1.0"
-description = "Add your description here"
+description = "Spectral clustering for bookmarks"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    # url fetching encounters ocassional website roadblocks
+    "selenium",
+    "selenium-stealth",
+]
