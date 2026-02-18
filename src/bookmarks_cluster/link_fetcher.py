@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 
+import selenium
 from selenium import webdriver
 
 from .bookmark_types import Bookmark
@@ -39,57 +40,39 @@ def _selenium_stealth_get_contents(url: str) -> str | None:
 
 def _fetch_bookmark_content(bookmark: Bookmark, conn: sqlite3.Connection) -> str | None:
     import datetime
-    from urllib.parse import urlsplit
+    logging.log(logging.INFO, f"Fetching {bookmark.url}...")
 
-    url = bookmark.url
-    # skip localhost
-    (_, netloc, _, _, _) = urlsplit(url)
-    if netloc == 'localhost' or netloc == '::1' or netloc.startswith('127.'):
-        return None
-
-    # start fetching remote
-    should_refetch = False
+    failed = False
     content = None
-    # check cache for refetch
+    try:
+        content = _selenium_stealth_get_contents(bookmark.url)
+    except:
+        failed = True
+    now = datetime.datetime.now().isoformat()
+
     cursor = conn.cursor()
-    cursor.execute("SELECT content, last_fetched FROM link_cache WHERE url = ? LIMIT 1", (url,))
-    row = cursor.fetchone()
+    cursor.execute("INSERT INTO link_cache (url, content, last_fetched, failed) VALUES (?, ?, ?, ?) ON CONFLICT(url) DO UPDATE SET content = ?, last_fetched = ?, failed = ?",
+               (bookmark.url, content, now, failed, content, now, failed))
+    cursor.execute("COMMIT")
     cursor.close()
 
-    if row is None:
-        should_refetch = True
-    else:
-        last_fetched_dt = datetime.datetime.fromisoformat(row[1])
-        one_month_ago = datetime.datetime.now() - datetime.timedelta(days=30)
-        if last_fetched_dt < one_month_ago:
-            should_refetch = True
-    if should_refetch:
-        # noinspection PyBroadException  ...we want to catch everything to prevent a crash yeah
-        try:
-            logging.log(logging.INFO, f"Fetching {bookmark.url}...")
-            content = _selenium_stealth_get_contents(bookmark.url)
-            now = datetime.datetime.now()
-
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO link_cache (url, content, last_fetched) VALUES (?, ?, ?) ON CONFLICT(url) DO UPDATE SET content = ?, last_fetched = ?",
-                       (url, content, now, content, now))
-            cursor.execute("COMMIT")
-            cursor.close()
-
-            logging.log(logging.INFO, f"Fetched {bookmark.title} from {bookmark.url}")
-        except:  # underlying error in fetch
-            content = None
-    else:
-        logging.log(logging.INFO, f"Fetched {bookmark.title} from CACHE")
-    return content
+    logging.log(logging.INFO, f"Fetched {bookmark.title} from {bookmark.url}")
 
 def fetch_bookmark_contents(bookmarks: list[Bookmark]) -> list[Bookmark]:
+    import datetime
+
     fetched_bookmarks = []
     conn = sqlite3.connect("cache.sqlite")
+    cursor = conn.cursor()
+    cmp_date: str = (datetime.datetime.now() - datetime.timedelta(days=30)).isoformat()
+
+    cursor.execute("SELECT (url) FROM link_cache WHERE last_fetched > ?", (cmp_date,))
+    exclude_urls = [row[0] for row in cursor.fetchall()]
     try:
         for bookmark in bookmarks:
-            fetched_bookmark = Bookmark(bookmark.guid, bookmark.title, bookmark.url, _fetch_bookmark_content(bookmark, conn))
-            fetched_bookmarks.append(fetched_bookmark)
+            if bookmark.url not in exclude_urls:
+                fetched_bookmark = Bookmark(bookmark.guid, bookmark.title, bookmark.url, _fetch_bookmark_content(bookmark, conn))
+                fetched_bookmarks.append(fetched_bookmark)
     finally:
         conn.close()
     return bookmarks
