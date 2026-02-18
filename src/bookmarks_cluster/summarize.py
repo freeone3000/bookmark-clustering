@@ -1,5 +1,5 @@
 
-def llm_extract(html: str) -> str:
+def _llm_extract(html: str) -> str:
     """
     Given an HTML page, uses a local LLM to extract the "meaningful" page contents.
     Truncates HTML to 44,351 tokens to prevent context overflow.
