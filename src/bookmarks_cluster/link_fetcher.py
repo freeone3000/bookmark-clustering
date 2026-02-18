@@ -1,7 +1,6 @@
 import sqlite3
 import logging
 
-import selenium
 from selenium import webdriver
 
 from .bookmark_types import Bookmark
@@ -66,13 +65,15 @@ def fetch_bookmark_contents(bookmarks: list[Bookmark]) -> list[Bookmark]:
     cursor = conn.cursor()
     cmp_date: str = (datetime.datetime.now() - datetime.timedelta(days=30)).isoformat()
 
-    cursor.execute("SELECT (url) FROM link_cache WHERE last_fetched > ?", (cmp_date,))
-    exclude_urls = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT url, content FROM link_cache WHERE last_fetched > ?", (cmp_date,))
+    cached_urls = {row[0]: row[1] for row in cursor.fetchall()}
     try:
         for bookmark in bookmarks:
-            if bookmark.url not in exclude_urls:
+            if bookmark.url in cached_urls:
+                fetched_bookmark = Bookmark(bookmark.guid, bookmark.title, bookmark.url, cached_urls[bookmark.url])
+            else:
                 fetched_bookmark = Bookmark(bookmark.guid, bookmark.title, bookmark.url, _fetch_bookmark_content(bookmark, conn))
-                fetched_bookmarks.append(fetched_bookmark)
+            fetched_bookmarks.append(fetched_bookmark)
     finally:
         conn.close()
-    return bookmarks
+    return fetched_bookmarks

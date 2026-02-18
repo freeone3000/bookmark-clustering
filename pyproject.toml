@@ -7,4 +7,6 @@ dependencies = [
     # url fetching encounters ocassional website roadblocks
     "selenium",
     "selenium-stealth",
+    # LM Studio integration for content extraction
+    "openai",
 ]
