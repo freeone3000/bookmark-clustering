@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
 import psycopg
-from .llm import load as llm_load
+from .llm import load_summarize as llm_load_summarize
 
 from .bookmark_types import Bookmark
 
@@ -19,55 +19,52 @@ def _llm_extract(html: str) -> str:
     import logging
     from openai import OpenAI
 
-    try:
-        client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
+    while True: # inline retry to limit stack depth
+        try:
+            client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
-        # Truncate HTML to prevent token overflow; max length found was 4435132
-        # TODO actually math this
-        max_chars = 8_500 # must also include truncation, system context, and the prompt below.
-        truncated_html = html[:max_chars]
-        if len(html) > max_chars:
-            truncated_html += "\n[... content truncated ...]"
+            # Truncate HTML to prevent token overflow; max length found was 4435132
+            # TODO actually math this
+            max_chars = 8_500 # must also include truncation, system context, and the prompt below.
+            truncated_html = html[:max_chars]
+            if len(html) > max_chars:
+                truncated_html += "\n[... content truncated ...]"
 
-        response = client.chat.completions.create(
-            model="local-model",
-            messages=[  # type: ignore
-                {
-                    "role": "system",
-                    "content": "You are an expert at extracting meaningful content from HTML pages. Extract the main content, article body, and key information while removing HTML markup, navigation elements, ads, scripts, and boilerplate. Return only the cleaned, meaningful text content."
-                },
-                {
-                    "role": "user",
-                    "content": f"Extract the meaningful content from this HTML:\n\n{truncated_html}"
-                }
-            ],
-            temperature=0.3,
-        )
+            response = client.chat.completions.create(
+                model="deepseek-r1-0528-qwen3-8b-mlx",
+                messages=[  # type: ignore
+                    {
+                        "role": "system",
+                        "content": "You are an expert at extracting meaningful content from HTML pages. Extract the main content, article body, and key information while removing HTML markup, navigation elements, ads, scripts, and boilerplate. Return only the cleaned, meaningful text content."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Extract the meaningful content from this HTML:\n\n{truncated_html}"
+                    }
+                ],
+                temperature=0.3,
+            )
 
-        extracted_content = response.choices[0].message.content
+            extracted_content = response.choices[0].message.content
 
-        # find the first double newline after the </think> tag, if it exists, and remove everything before that to eliminate "thinking" text
-        start_idx = extracted_content.index("</think>")+len("</think>") if "</think>" in extracted_content else 0
-        extracted_content = extracted_content[extracted_content.find("\n\n", start_idx)+2:]
+            # find the first double newline after the </think> tag, if it exists, and remove everything before that to eliminate "thinking" text
+            start_idx = extracted_content.index("</think>")+len("</think>") if "</think>" in extracted_content else 0
+            extracted_content = extracted_content[extracted_content.find("\n\n", start_idx)+2:]
 
-        logging.info(f"Successfully extracted content using LM Studio")
-        return extracted_content
+            logging.info(f"Successfully extracted content using LM Studio")
+            return extracted_content
 
-    except Exception as e:
-        logging.error(f"Failed to extract content using LM Studio: {e}")
-        ex_msg = str(e)
-        if "The model has crashed" in ex_msg or "No models loaded" in ex_msg:
-            llm_load()
-            return _llm_extract(html)
-        else:
-            raise e
+        except Exception as e:
+            logging.error(f"Failed to extract content using LM Studio: {e}")
+            llm_load_summarize()
 
 def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list[Summary]:
     from .db import get_summaries, write_summary
 
     cached_summaries = get_summaries(conn)
     summaries = []
-    for bookmark in bookmarks:
+    while len(bookmarks) > 0:
+        bookmark = bookmarks.pop(0) # remove as we go to limit ram usage
         if bookmark.content is not None: # skip missing and failed
             if bookmark.url in cached_summaries:
                 summary = cached_summaries[bookmark.url]
@@ -76,4 +73,5 @@ def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list
                 if len(summary) > 0:
                     write_summary(bookmark.url, summary, conn)
             summaries.append(Summary(url=bookmark.url, title=bookmark.title, summary=summary))
+            del bookmark # free memory
     return summaries

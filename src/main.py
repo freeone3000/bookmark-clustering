@@ -14,6 +14,7 @@ def main():
     with db_connect() as conn:
         bookmarks = fetch_bookmark_contents(load_bookmarks(), conn)
         summaries = llm_extract_all(bookmarks, conn)
+        del bookmarks
     print(summaries)
 
 if __name__ == "__main__":
