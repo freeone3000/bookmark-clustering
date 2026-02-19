@@ -11,5 +11,8 @@ dependencies = [
     "pgserver",
     "psycopg~=3.3.3",
     # LM Studio integration for content extraction
+    "lmstudio",
     "openai",
+    # for clustering
+    "numpy",
 ]

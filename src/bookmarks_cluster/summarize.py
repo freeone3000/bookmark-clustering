@@ -1,9 +1,11 @@
 from typing import NamedTuple
 
 import psycopg
-from .llm import load_summarize as llm_load_summarize
+import lmstudio as lms
 
 from .bookmark_types import Bookmark
+
+SUMMARIZATION_MODEL = "deepseek-r1-0528-qwen3-8b-mlx"
 
 class Summary(NamedTuple):
     url: str
@@ -20,6 +22,9 @@ def _llm_extract(html: str) -> str:
     from openai import OpenAI
 
     while True: # inline retry to limit stack depth
+        model = lms.llm(SUMMARIZATION_MODEL)
+
+        system_prompt = "You are an expert at extracting meaningful content from HTML pages. Extract the main content, article body, and key information while removing HTML markup, navigation elements, ads, scripts, and boilerplate. Return only the cleaned, meaningful text content."
         try:
             client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
@@ -45,8 +50,6 @@ def _llm_extract(html: str) -> str:
                 temperature=0.3,
             )
 
-            extracted_content = response.choices[0].message.content
-
             # find the first double newline after the </think> tag, if it exists, and remove everything before that to eliminate "thinking" text
             start_idx = extracted_content.index("</think>")+len("</think>") if "</think>" in extracted_content else 0
             extracted_content = extracted_content[extracted_content.find("\n\n", start_idx)+2:]
@@ -56,7 +59,6 @@ def _llm_extract(html: str) -> str:
 
         except Exception as e:
             logging.error(f"Failed to extract content using LM Studio: {e}")
-            llm_load_summarize()
 
 def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list[Summary]:
     from .db import get_summaries, write_summary
@@ -74,4 +76,7 @@ def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list
                     write_summary(bookmark.url, summary, conn)
             summaries.append(Summary(url=bookmark.url, title=bookmark.title, summary=summary))
             del bookmark # free memory
+    # unload summarization model
+    while len(lms.list_loaded_models("llm")) != 0:
+        lms.llm().unload()
     return summaries
