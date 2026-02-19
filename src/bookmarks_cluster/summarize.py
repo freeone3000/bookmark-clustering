@@ -22,8 +22,10 @@ def _llm_extract(html: str) -> str:
     from openai import OpenAI
 
     while True: # inline retry to limit stack depth
-        model = lms.llm(SUMMARIZATION_MODEL)
+        model = lms.llm(SUMMARIZATION_MODEL) # ensure model has been reloaded; this one's a bit crashy
 
+        # TODO a thinking model is overkill here; we might speed up summarization ability *and accuracy* using a smaller model...
+        # TODO or should we go full kimi and do it based on pixels and a screenshot rather than the raw text?
         system_prompt = "You are an expert at extracting meaningful content from HTML pages. Extract the main content, article body, and key information while removing HTML markup, navigation elements, ads, scripts, and boilerplate. Return only the cleaned, meaningful text content."
         try:
             client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")

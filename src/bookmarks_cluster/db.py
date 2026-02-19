@@ -1,3 +1,4 @@
+from typing import Tuple
 import pgserver
 import psycopg
 
@@ -13,7 +14,7 @@ def _init_pg_server() -> str:
     db.psql("CREATE EXTENSION IF NOT EXISTS vector")
     db.psql("CREATE TABLE IF NOT EXISTS link_cache (url TEXT PRIMARY KEY, content TEXT, last_fetched TIMESTAMPTZ, failed BOOLEAN)")
     db.psql("CREATE TABLE IF NOT EXISTS summaries (url TEXT PRIMARY KEY REFERENCES link_cache(url), summary TEXT)")
-    db.psql("CREATE TABLE IF NOT EXISTS embeddings (url TEXT PRIMARY KEY REFERENCES link_cache(url), embedding vector(4096))")
+    db.psql("CREATE TABLE IF NOT EXISTS embeddings (url TEXT PRIMARY KEY REFERENCES link_cache(url), title TEXT, embedding vector(4096))")
     return db.get_uri()
 
 def db_connect() -> psycopg.Connection:
@@ -58,13 +59,19 @@ def write_summary(url: str, summary: str, conn: psycopg.Connection) -> None:
         )
         conn.commit()
 
-def write_embedding(url: str, embedding: list[float], conn: psycopg.Connection) -> None:
+def get_embeddings(conn: psycopg.Connection) -> dict[str, Tuple[str, list[float]]]:
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT e.url, e.title, e.embedding FROM embeddings AS e")
+        entries = {row[1]: (row[0], row[2]) for row in cursor.fetchall()}
+    return entries
+
+def write_embedding(url: str, title: str, embedding: list[float], conn: psycopg.Connection) -> None:
     with conn.cursor() as cursor:
         cursor.execute(
-            """INSERT INTO embeddings (url, embedding) 
-               VALUES (%s, %s) 
+            """INSERT INTO embeddings (url, title, embedding) 
+               VALUES (%s, %s, %s) 
                ON CONFLICT(url) DO UPDATE 
                SET embedding = %s""",
-            (url, embedding, embedding)
+            (url, title, embedding, embedding)
         )
         conn.commit()
