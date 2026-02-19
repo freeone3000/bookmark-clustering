@@ -2,11 +2,12 @@ from typing import NamedTuple, Tuple
 
 import lmstudio as lms
 import psycopg
+import numpy as np
 
 from .summarize import Summary
 
 EMBED_MODEL = "text-embedding-qwen3-embedding-8b"
-EmbeddingSet = dict[str, Tuple[str, list[float]]]
+EmbeddingSet = dict[str, Tuple[str, np.ndarray]]
 
 def _embed_chunk(summary_batch: list[Summary]) -> list[list[float]]:
     """
@@ -37,7 +38,7 @@ def _embed_chunk(summary_batch: list[Summary]) -> list[list[float]]:
 def embed_all(summaries: list[Summary], conn: psycopg.Connection) -> EmbeddingSet:
     from .db import get_embeddings, write_embedding
 
-    embeddings: EmbeddingSet = get_embeddings(conn)
+    embeddings: EmbeddingSet = {k: (v[0], np.array(v[1])) for k, v in get_embeddings(conn).items()}
     # TODO magic number
     _BATCH_SIZE = 4 # from lms
     summaries = [summary for summary in summaries if summary.url not in embeddings]
@@ -49,5 +50,5 @@ def embed_all(summaries: list[Summary], conn: psycopg.Connection) -> EmbeddingSe
         embedding_chunk: list[list[float]] = _embed_chunk(summary_chunk)
         for (summary, embedding) in zip(summary_chunk, embedding_chunk):
             write_embedding(summary.url, summary.title, embedding, conn)
-            embeddings[summary.url] = (summary.title, embedding)
+            embeddings[summary.url] = (summary.title, np.array(embedding))
     return embeddings

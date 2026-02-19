@@ -15,4 +15,5 @@ dependencies = [
     "openai",
     # for clustering
     "numpy",
+    "scikit-learn",
 ]
