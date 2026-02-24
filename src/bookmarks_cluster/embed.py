@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple
+from typing import Tuple, NamedTuple
 
 import lmstudio as lms
 import psycopg
@@ -7,7 +7,17 @@ import numpy as np
 from .summarize import Summary
 
 EMBED_MODEL = "text-embedding-qwen3-embedding-8b"
-EmbeddingSet = dict[str, Tuple[str, np.ndarray]]
+
+# Set up as a tuple of lists for easier batch processing
+class EmbeddingSet(NamedTuple):
+    urls: list[str]
+    titles: list[str]
+    embeddings: list[np.ndarray]
+    
+    def append(self, url: str, title: str, embedding: list[float]):
+        self.urls.append(url)
+        self.titles.append(title)
+        self.embeddings.append(np.array(embedding))
 
 def _embed_chunk(summary_batch: list[Summary]) -> list[list[float]]:
     """
@@ -38,10 +48,14 @@ def _embed_chunk(summary_batch: list[Summary]) -> list[list[float]]:
 def embed_all(summaries: list[Summary], conn: psycopg.Connection) -> EmbeddingSet:
     from .db import get_embeddings, write_embedding
 
-    embeddings: EmbeddingSet = {k: (v[0], np.array(v[1])) for k, v in get_embeddings(conn).items()}
+    # pd.df.T (pandas dataframe transpose)
+    embeddings = EmbeddingSet([], [], [])
+    for (url, title, embedding) in get_embeddings(conn):
+        embeddings.append(url, title, embedding)
+
     # TODO magic number
     _BATCH_SIZE = 4 # from lms
-    summaries = [summary for summary in summaries if summary.url not in embeddings]
+    summaries = [summary for summary in summaries if summary.url not in embeddings.urls]
     summary_chunks: list[list[Summary]] = [summaries[i:i+_BATCH_SIZE] for i in range(0, len(summaries), _BATCH_SIZE)]
     del summaries
 
@@ -50,5 +64,5 @@ def embed_all(summaries: list[Summary], conn: psycopg.Connection) -> EmbeddingSe
         embedding_chunk: list[list[float]] = _embed_chunk(summary_chunk)
         for (summary, embedding) in zip(summary_chunk, embedding_chunk):
             write_embedding(summary.url, summary.title, embedding, conn)
-            embeddings[summary.url] = (summary.title, np.array(embedding))
+            embeddings.append(summary.url, summary.title, embedding)
     return embeddings

@@ -7,6 +7,7 @@ def main():
     from bookmarks_cluster.db import db_connect
     from bookmarks_cluster.summarize import llm_extract_all
     from bookmarks_cluster.embed import embed_all
+    from src.bookmarks_cluster.cluster import cluster
 
     if os.path.exists("bookmarks_cluster.log"):
         os.remove("bookmarks_cluster.log")

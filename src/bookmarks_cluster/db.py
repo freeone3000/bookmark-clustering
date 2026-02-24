@@ -59,10 +59,14 @@ def write_summary(url: str, summary: str, conn: psycopg.Connection) -> None:
         )
         conn.commit()
 
-def get_embeddings(conn: psycopg.Connection) -> dict[str, Tuple[str, list[float]]]:
+def get_embeddings(conn: psycopg.Connection) -> list[Tuple[str, str, list[float]]]:
+    """
+    :param conn:
+    :return: List of (url, title, embedding vector) tuples for all entries in the embeddings table
+    """
     with conn.cursor() as cursor:
         cursor.execute("SELECT e.url, e.title, e.embedding FROM embeddings AS e")
-        entries = {row[1]: (row[0], row[2]) for row in cursor.fetchall()}
+        entries = [(row[0], row[1], row[2]) for row in cursor.fetchall()]
     return entries
 
 def write_embedding(url: str, title: str, embedding: list[float], conn: psycopg.Connection) -> None:
