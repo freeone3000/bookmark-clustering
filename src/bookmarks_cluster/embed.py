@@ -14,7 +14,7 @@ class EmbeddingSet(NamedTuple):
     titles: list[str]
     embeddings: list[np.ndarray]
     
-    def append(self, url: str, title: str, embedding: list[float]):
+    def append(self, url: str, title: str, embedding: list[float] | np.ndarray):
         self.urls.append(url)
         self.titles.append(title)
         self.embeddings.append(np.array(embedding))
@@ -61,7 +61,7 @@ def embed_all(summaries: list[Summary], conn: psycopg.Connection) -> EmbeddingSe
 
     while summary_chunks:
         summary_chunk: list[Summary] = summary_chunks.pop(0)
-        embedding_chunk: list[list[float]] = _embed_chunk(summary_chunk)
+        embedding_chunk: list[np.ndarray] = _embed_chunk(summary_chunk)
         for (summary, embedding) in zip(summary_chunk, embedding_chunk):
             write_embedding(summary.url, summary.title, embedding, conn)
             embeddings.append(summary.url, summary.title, embedding)

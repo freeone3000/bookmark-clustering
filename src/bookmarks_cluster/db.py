@@ -1,7 +1,8 @@
-from typing import Tuple, Any, Union
+from typing import Tuple
 import pgserver
 import psycopg
 from pgvector.psycopg import register_vector
+import numpy as np
 
 from .bookmark_types import Bookmark
 
@@ -71,7 +72,7 @@ def get_embeddings(conn: psycopg.Connection) -> list[Tuple[str, str, list[float]
         entries = [(row[0], row[1], row[2]) for row in cursor.fetchall()]
     return entries
 
-def write_embedding(url: str, title: str, embedding: list[float], conn: psycopg.Connection) -> None:
+def write_embedding(url: str, title: str, embedding: np.ndarray, conn: psycopg.Connection) -> None:
     with conn.cursor(binary=True) as cursor:
         cursor.execute(
             """INSERT INTO embeddings (url, title, embedding) 

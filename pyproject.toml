@@ -19,3 +19,9 @@ dependencies = [
     "scikit-learn",
     "ipykernel>=7.2.0",
 ]
+
+[dependency-groups]
+dev = [
+    "matplotlib",
+    "scipy-stubs~=1.17.0",
+]
