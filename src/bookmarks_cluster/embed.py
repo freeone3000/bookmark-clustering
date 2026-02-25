@@ -19,7 +19,7 @@ class EmbeddingSet(NamedTuple):
         self.titles.append(title)
         self.embeddings.append(np.array(embedding))
 
-def _embed_chunk(summary_batch: list[Summary]) -> list[list[float]]:
+def _embed_chunk(summary_batch: list[Summary]) -> list[np.ndarray]:
     """
     Given a batch of summaries, uses a local LLM to generate a batch of embeddings for the vector
     :return: A list of embedding vectors, with length equal to the input batch. Indexes are kept consistent.
@@ -38,7 +38,7 @@ def _embed_chunk(summary_batch: list[Summary]) -> list[list[float]]:
             model=EMBED_MODEL,
             input=[tf(s) for s in summary_batch],
         )
-        embedding_vectors = [d.embedding for d in response.data]
+        embedding_vectors = [np.array(d.embedding) for d in response.data]
         logging.info(f"Successfully generated embedding using LM Studio")
         return embedding_vectors
     except Exception as e:

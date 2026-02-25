@@ -10,10 +10,12 @@ dependencies = [
     # pgserver for local RAG
     "pgserver",
     "psycopg~=3.3.3",
+    "pgvector~=0.4.2",
     # LM Studio integration for content extraction
     "lmstudio",
     "openai",
     # for clustering
     "numpy",
     "scikit-learn",
+    "ipykernel>=7.2.0",
 ]

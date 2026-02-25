@@ -1,4 +1,5 @@
 import sklearn
+import numpy as np
 
 from .embed import EmbeddingSet
 
@@ -10,4 +11,10 @@ def cluster(embeddings: EmbeddingSet) -> Clustering:
     # we calculate this by finding our pairwise distance metric, which gives us our graph in Hilbert space
     # then we can get our graph laplacian, ... (knowledge gap here) calculate the eigenvalues, and find the max drop-off to determine K
 
-    pass
+    # if we use cosine similarity as our graph weights, we now have a graph in Hilbert space
+    graph_weights = sklearn.metrics.pairwise.cosine_similarity(embeddings.embeddings)
+    # where we can then tak the graph Laplacian
+    graph_laplacian = sklearn.graph.laplacian(graph_weights, normed=True)
+    # pairwise cosine is symmetric, so we can use eigh to get eigenvalues, which gives us sorted results
+    eigenvalues, _ = np.linalg.eigh(graph_laplacian)
+

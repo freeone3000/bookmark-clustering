@@ -1,9 +1,9 @@
-from typing import Tuple
+from typing import Tuple, Any, Union
 import pgserver
 import psycopg
+from pgvector.psycopg import register_vector
 
 from .bookmark_types import Bookmark
-
 
 def _init_pg_server() -> str:
     """
@@ -19,7 +19,9 @@ def _init_pg_server() -> str:
 
 def db_connect() -> psycopg.Connection:
     uri = _init_pg_server()
-    return psycopg.connect(uri)
+    conn = psycopg.connect(uri)
+    register_vector(conn)
+    return conn
 
 def get_cache_entries(conn: psycopg.Connection) -> dict[str, str]:
     with conn.cursor() as cursor:
@@ -64,13 +66,13 @@ def get_embeddings(conn: psycopg.Connection) -> list[Tuple[str, str, list[float]
     :param conn:
     :return: List of (url, title, embedding vector) tuples for all entries in the embeddings table
     """
-    with conn.cursor() as cursor:
+    with conn.cursor(binary=True) as cursor:
         cursor.execute("SELECT e.url, e.title, e.embedding FROM embeddings AS e")
         entries = [(row[0], row[1], row[2]) for row in cursor.fetchall()]
     return entries
 
 def write_embedding(url: str, title: str, embedding: list[float], conn: psycopg.Connection) -> None:
-    with conn.cursor() as cursor:
+    with conn.cursor(binary=True) as cursor:
         cursor.execute(
             """INSERT INTO embeddings (url, title, embedding) 
                VALUES (%s, %s, %s) 
