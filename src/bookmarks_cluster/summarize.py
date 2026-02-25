@@ -5,7 +5,7 @@ import lmstudio as lms
 
 from .bookmark_types import Bookmark
 
-SUMMARIZATION_MODEL = "deepseek-r1-0528-qwen3-8b-mlx"
+SUMMARIZATION_MODEL = "phi-3.1-mini-128k-instruct"
 
 class Summary(NamedTuple):
     url: str
@@ -26,36 +26,32 @@ def _llm_extract(html: str) -> str:
 
         # TODO a thinking model is overkill here; we might speed up summarization ability *and accuracy* using a smaller model...
         # TODO or should we go full kimi and do it based on pixels and a screenshot rather than the raw text?
-        system_prompt = "You are an expert at extracting meaningful content from HTML pages. Extract the main content, article body, and key information while removing HTML markup, navigation elements, ads, scripts, and boilerplate. Return only the cleaned, meaningful text content."
         try:
             client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
-            # Truncate HTML to prevent token overflow; max length found was 4435132
-            # TODO actually math this
-            max_chars = 8_500 # must also include truncation, system context, and the prompt below.
+            # Truncate HTML to prevent token overflow; max length found was 4435132, but max token length we have with Phi-3 is 131072
+            max_chars = 130_000 # must also include truncation, system context, and the prompt below.
             truncated_html = html[:max_chars]
             if len(html) > max_chars:
                 truncated_html += "\n[... content truncated ...]"
 
             response = client.chat.completions.create(
-                model="deepseek-r1-0528-qwen3-8b-mlx",
+                model=SUMMARIZATION_MODEL,
                 messages=[  # type: ignore
                     {
                         "role": "system",
-                        "content": "You are an expert at extracting meaningful content from HTML pages. Extract the main content, article body, and key information while removing HTML markup, navigation elements, ads, scripts, and boilerplate. Return only the cleaned, meaningful text content."
+                        "content": "You are an expert librarian, doing an initial summarization pass of a list of web pages. Given an HTML page, you are able to extract the content, purpose, and intended audience of the page. You will return only plain text, free from any tags or other markup."
                     },
                     {
                         "role": "user",
-                        "content": f"Extract the meaningful content from this HTML:\n\n{truncated_html}"
+                        "content": f"Summarize the content, purpose, and intended audience of the following HTML:\n\n{truncated_html}"
                     }
                 ],
                 temperature=0.3,
             )
 
-            # find the first double newline after the </think> tag, if it exists, and remove everything before that to eliminate "thinking" text
-            start_idx = extracted_content.index("</think>")+len("</think>") if "</think>" in extracted_content else 0
-            extracted_content = extracted_content[extracted_content.find("\n\n", start_idx)+2:]
-
+            # phi has much cleaner output; likely what we should have used from the beginning
+            extracted_content = response.choices[0].message.content
             logging.info(f"Successfully extracted content using LM Studio")
             return extracted_content
 
