@@ -6,7 +6,7 @@ import numpy as np
 
 from .summarize import Summary
 
-EMBED_MODEL = "text-embedding-qwen3-embedding-8b"
+EMBED_MODEL = "jina-embeddings-v5-text-small-clustering"
 
 # Set up as a tuple of lists for easier batch processing
 class EmbeddingSet(NamedTuple):
