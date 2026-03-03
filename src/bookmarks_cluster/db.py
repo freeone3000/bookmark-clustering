@@ -15,7 +15,7 @@ def _init_pg_server() -> str:
     db.psql("CREATE EXTENSION IF NOT EXISTS vector")
     db.psql("CREATE TABLE IF NOT EXISTS link_cache (url TEXT PRIMARY KEY, content TEXT, last_fetched TIMESTAMPTZ, failed BOOLEAN)")
     db.psql("CREATE TABLE IF NOT EXISTS summaries (url TEXT PRIMARY KEY REFERENCES link_cache(url), summary TEXT)")
-    db.psql("CREATE TABLE IF NOT EXISTS embeddings (url TEXT PRIMARY KEY REFERENCES link_cache(url), title TEXT, embedding vector(4096))")
+    db.psql("CREATE TABLE IF NOT EXISTS embeddings (url TEXT PRIMARY KEY REFERENCES link_cache(url), title TEXT, embedding vector(1024))")
     return db.get_uri()
 
 def db_connect() -> psycopg.Connection:

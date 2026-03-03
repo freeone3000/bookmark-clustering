@@ -1,3 +1,8 @@
+from src.bookmarks_cluster.cluster import print_clusters_tree
+from src.bookmarks_cluster.firefox.ff_output_html import output_html
+
+from pathlib import Path
+
 def main():
     import os
     import logging
@@ -18,7 +23,8 @@ def main():
         summaries = llm_extract_all(bookmarks, conn)
         del bookmarks
         embeddings = embed_all(summaries, conn)
-        print(cluster(embeddings))
+        clusters = cluster(embeddings)
+    output_html(clusters, Path(__file__).parent.parent / "output/bookmarks_clustered.html")
 
 if __name__ == "__main__":
     main()
