@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 
 from ..bookmark_types import Bookmark
 
@@ -35,9 +36,12 @@ def load_bookmarks() -> list[Bookmark]:
     import platform
 
     if platform.system() == "Darwin":
-        base_path = "/Users/jasmine/Library/Application Support/Firefox/Profiles/"
+        base_path = Path.home() / "/Library/Application Support/Firefox/Profiles/"
+    elif platform.system() == "Windows":
+        import os
+        base_path = Path(os.getenv("APPDATA")) / "Mozilla/Firefox/Profiles/"
     else:
-        raise NotImplementedError("Unsupported platform: {}".format(platform.system()))
+        base_path = Path.home() / ".mozilla/firefox/"
 
     # Find the default profile
     import os
