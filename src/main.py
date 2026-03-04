@@ -18,12 +18,19 @@ def main():
         os.remove("bookmarks_cluster.log")
     logging.basicConfig(level=logging.INFO)
 
-    with db_connect() as conn:
+    conn = db_connect()
+    try: # sqlite has limited 'with' support
         bookmarks = fetch_bookmark_contents(load_bookmarks(), conn)
         summaries = llm_extract_all(bookmarks, conn)
         del bookmarks
         embeddings = embed_all(summaries, conn)
         clusters = cluster(embeddings)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
     output_html(clusters, Path(__file__).parent.parent / "output/bookmarks_clustered.html")
 
 if __name__ == "__main__":

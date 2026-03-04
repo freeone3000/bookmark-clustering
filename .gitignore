@@ -6,3 +6,13 @@
 uv.lock
 .venv/
 target/
+
+# AI "assistance"
+claude-501/
+
+# Local bookmark cache
+cache_data/
+cache.sqlite
+
+# Output
+output/

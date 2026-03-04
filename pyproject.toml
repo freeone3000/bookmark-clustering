@@ -7,10 +7,6 @@ dependencies = [
     # url fetching encounters ocassional website roadblocks
     "selenium",
     "selenium-stealth",
-    # pgserver for local RAG
-    "pgserver",
-    "psycopg~=3.3.3",
-    "pgvector~=0.4.2",
     # LM Studio integration for content extraction
     "lmstudio",
     "openai",
