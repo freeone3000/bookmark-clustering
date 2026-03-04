@@ -4,11 +4,11 @@ from bs4 import BeautifulSoup
 
 def fetch_site(url: str, when: datetime) -> str | None:
     """
-    Fetches a site from remote using the wayback API's memento protocol support.
+    Fetches a site from remote using the wayback API.
     This returns the *closest* snapshot to the given time, which may be in the future!
     :param url: The *original* URL site to fetch
     :param when: The point-in-time to fetch
-    :return: The site content, or None if the site was never archived by archive.org
+    :return: The URL to the site content, or None if the site was never archived by archive.org
     """
     # TODO CDX support
     timestamp = when.strftime("%Y%m%d%H%M%S")
@@ -32,6 +32,4 @@ def fetch_site(url: str, when: datetime) -> str | None:
     if iframe is None or not iframe.get("src"):
         return None
 
-    inner = requests.get(iframe["src"])
-    inner.raise_for_status()
-    return inner.text
+    return iframe['src']

@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Tuple
+from typing import Tuple, NamedTuple
 
 import numpy as np
 
@@ -7,10 +7,14 @@ from .bookmark_types import Bookmark, GUID
 
 _DB_PATH = "cache.sqlite"
 
+class CacheEntry(NamedTuple):
+    content: str
+    screenshot: bytes
+
 
 def _init_db() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH)
-    conn.execute("CREATE TABLE IF NOT EXISTS link_cache (url TEXT PRIMARY KEY, content TEXT, last_fetched DATETIME, failed INTEGER)")
+    conn.execute("CREATE TABLE IF NOT EXISTS link_cache (url TEXT PRIMARY KEY, content TEXT, screenshot BLOB, last_fetched DATETIME, failed INTEGER)")
     conn.execute("CREATE TABLE IF NOT EXISTS summaries (guid TEXT PRIMARY KEY, url TEXT REFERENCES link_cache(url), summary TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS embeddings (guid TEXT PRIMARY KEY, url TEXT REFERENCES link_cache(url), embedding BLOB)")
     conn.commit()
@@ -21,20 +25,20 @@ def db_connect() -> sqlite3.Connection:
     return _init_db()
 
 
-def get_cache_entries(conn: sqlite3.Connection) -> dict[str, str]:
+def get_cache_entries(conn: sqlite3.Connection) -> dict[str, CacheEntry]:
     cursor = conn.execute(
-        "SELECT url, content FROM link_cache WHERE last_fetched > datetime('now', '-1 month')"
+        "SELECT url, content, screenshot FROM link_cache WHERE last_fetched > datetime('now', '-1 month')"
     )
-    return {row[0]: row[1] for row in cursor.fetchall()}
+    return {row[0]: CacheEntry(content=row[1], screenshot=row[2]) for row in cursor.fetchall()}
 
 
-def write_cache(bookmark: Bookmark, content: str | None, failed: bool, conn: sqlite3.Connection) -> None:
+def write_cache(bookmark: Bookmark, content: str | None, screenshot: bytes | None, failed: bool, conn: sqlite3.Connection) -> None:
     conn.execute(
-        """INSERT INTO link_cache (url, content, last_fetched, failed)
-           VALUES (?, ?, datetime('now'), ?)
+        """INSERT INTO link_cache (url, content, screenshot, last_fetched, failed)
+           VALUES (?, ?, ?, datetime('now'), ?)
            ON CONFLICT(url) DO UPDATE
-           SET content = ?, last_fetched = datetime('now'), failed = ?""",
-        (bookmark.url, content, failed, content, failed)
+           SET content = ?, screenshot = ?, last_fetched = datetime('now'), failed = ?""",
+        (bookmark.url, content, screenshot, failed, content, screenshot, failed)
     )
     conn.commit()
 

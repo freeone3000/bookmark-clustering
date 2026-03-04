@@ -9,3 +9,4 @@ class Bookmark(NamedTuple):
     url: str
     date: datetime.datetime
     content: str | None = None
+    screenshot: bytes | None = None
