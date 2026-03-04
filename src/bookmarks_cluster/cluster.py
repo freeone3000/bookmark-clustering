@@ -4,7 +4,7 @@ import numpy as np
 from scipy.sparse.csgraph import laplacian
 from sklearn.metrics.pairwise import rbf_kernel
 
-from .bookmark_types import Bookmark
+from .bookmark_types import Bookmark, GUID
 from .embed import EmbeddingSet
 from sklearn.cluster import SpectralClustering
 
@@ -16,7 +16,7 @@ class Cluster(NamedTuple):
 Clustering = list[Cluster]
 
 
-def cluster(embed_set: EmbeddingSet, min_bound: int = 15, max_bound: int = 70) -> Clustering:
+def cluster(embed_set: EmbeddingSet, bookmarks_by_guid: dict[GUID, Bookmark], min_bound: int = 15, max_bound: int = 70) -> Clustering:
     # sklearn spectral clustering requires us to know the number of clusters ahead of time
     # so we first, from StackOverflow, "look at the eigenvalues of the graph Laplacian and chose the K corresponding to the maximum drop-off."
     # we calculate this by finding our pairwise distance metric, which gives us our graph in Hilbert space
@@ -65,8 +65,8 @@ def cluster(embed_set: EmbeddingSet, min_bound: int = 15, max_bound: int = 70) -
     clusters = []
     for cluster_id in range(num_clusters):
         cluster_mask = actual_fit == cluster_id
-        cluster_bookmarks = [Bookmark(guid='', url=embed_set.urls[i], title=embed_set.titles[i], content=None) for i in np.where(cluster_mask)[0]]
-        label = embed_set.titles[closest_indices[cluster_id]]
+        cluster_bookmarks = [bookmarks_by_guid[embed_set.guids[i]] for i in np.where(cluster_mask)[0]]
+        label = bookmarks_by_guid[embed_set.guids[closest_indices[cluster_id]]].title
         clusters.append(Cluster(cluster_bookmarks, label))
     return clusters
 

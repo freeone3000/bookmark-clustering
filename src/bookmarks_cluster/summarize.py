@@ -1,13 +1,14 @@
+import sqlite3
 from typing import NamedTuple
 
-import psycopg
 import lmstudio as lms
 
-from .bookmark_types import Bookmark
+from .bookmark_types import Bookmark, GUID
 
 SUMMARIZATION_MODEL = "phi-3.1-mini-128k-instruct"
 
 class Summary(NamedTuple):
+    guid: GUID
     url: str
     title: str
     summary: str
@@ -58,7 +59,7 @@ def _llm_extract(html: str) -> str:
         except Exception as e:
             logging.error(f"Failed to extract content using LM Studio: {e}")
 
-def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list[Summary]:
+def llm_extract_all(bookmarks: list[Bookmark], conn: sqlite3.Connection) -> list[Summary]:
     from .db import get_summaries, write_summary
 
     cached_summaries = get_summaries(conn)
@@ -66,13 +67,13 @@ def llm_extract_all(bookmarks: list[Bookmark], conn: psycopg.Connection) -> list
     while len(bookmarks) > 0:
         bookmark = bookmarks.pop(0) # remove as we go to limit ram usage
         if bookmark.content is not None: # skip missing and failed
-            if bookmark.url in cached_summaries:
-                summary = cached_summaries[bookmark.url]
+            if bookmark.guid in cached_summaries:
+                summary = cached_summaries[bookmark.guid]
             else:
                 summary = _llm_extract(bookmark.content)
                 if len(summary) > 0:
-                    write_summary(bookmark.url, summary, conn)
-            summaries.append(Summary(url=bookmark.url, title=bookmark.title, summary=summary))
+                    write_summary(bookmark.guid, bookmark.url, summary, conn)
+            summaries.append(Summary(guid=bookmark.guid, url=bookmark.url, title=bookmark.title, summary=summary))
             del bookmark # free memory
     # unload summarization model
     while len(lms.list_loaded_models("llm")) != 0:

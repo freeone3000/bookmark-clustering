@@ -20,18 +20,26 @@ def main():
 
     conn = db_connect()
     try: # sqlite has limited 'with' support
+        logging.info("Fetching bookmarks...")
         bookmarks = fetch_bookmark_contents(load_bookmarks(), conn)
+        bookmarks_by_guid = {b.guid: b for b in bookmarks}
+        logging.info("Extracting content...")
         summaries = llm_extract_all(bookmarks, conn)
-        del bookmarks
-        embeddings = embed_all(summaries, conn)
-        clusters = cluster(embeddings)
+        logging.info("Embedding summaries...")
+        embeddings = embed_all(summaries, conn, bookmarks_by_guid)
         conn.commit()
     except Exception as e:
         conn.rollback()
         raise e
     finally:
         conn.close()
-    output_html(clusters, Path(__file__).parent.parent / "output/bookmarks_clustered.html")
+
+    logging.info("Clustering...")
+    clusters = cluster(embeddings, bookmarks_by_guid)
+
+    target_path = Path(__file__).parent.parent / "output/bookmarks_clustered.html"
+    logging.info(f"Outputting html to {target_path}")
+    output_html(clusters, target_path)
 
 if __name__ == "__main__":
     main()

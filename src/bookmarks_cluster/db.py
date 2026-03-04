@@ -3,7 +3,7 @@ from typing import Tuple
 
 import numpy as np
 
-from .bookmark_types import Bookmark
+from .bookmark_types import Bookmark, GUID
 
 _DB_PATH = "cache.sqlite"
 
@@ -11,8 +11,8 @@ _DB_PATH = "cache.sqlite"
 def _init_db() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH)
     conn.execute("CREATE TABLE IF NOT EXISTS link_cache (url TEXT PRIMARY KEY, content TEXT, last_fetched DATETIME, failed INTEGER)")
-    conn.execute("CREATE TABLE IF NOT EXISTS summaries (url TEXT PRIMARY KEY REFERENCES link_cache(url), summary TEXT)")
-    conn.execute("CREATE TABLE IF NOT EXISTS embeddings (url TEXT PRIMARY KEY REFERENCES link_cache(url), title TEXT, embedding BLOB)")
+    conn.execute("CREATE TABLE IF NOT EXISTS summaries (guid TEXT PRIMARY KEY, url TEXT REFERENCES link_cache(url), summary TEXT)")
+    conn.execute("CREATE TABLE IF NOT EXISTS embeddings (guid TEXT PRIMARY KEY, url TEXT REFERENCES link_cache(url), embedding BLOB)")
     conn.commit()
     return conn
 
@@ -39,38 +39,38 @@ def write_cache(bookmark: Bookmark, content: str | None, failed: bool, conn: sql
     conn.commit()
 
 
-def get_summaries(conn: sqlite3.Connection) -> dict[str, str]:
-    cursor = conn.execute("SELECT url, summary FROM summaries")
+def get_summaries(conn: sqlite3.Connection) -> dict[GUID, str]:
+    cursor = conn.execute("SELECT guid, summary FROM summaries")
     return {row[0]: row[1] for row in cursor.fetchall()}
 
 
-def write_summary(url: str, summary: str, conn: sqlite3.Connection) -> None:
+def write_summary(guid: GUID, url: str, summary: str, conn: sqlite3.Connection) -> None:
     conn.execute(
-        """INSERT INTO summaries (url, summary)
-           VALUES (?, ?)
-           ON CONFLICT(url) DO UPDATE
+        """INSERT INTO summaries (guid, url, summary)
+           VALUES (?, ?, ?)
+           ON CONFLICT(guid) DO UPDATE
            SET summary = ?""",
-        (url, summary, summary)
+        (guid, url, summary, summary)
     )
     conn.commit()
 
 
-def get_embeddings(conn: sqlite3.Connection) -> list[Tuple[str, str, np.ndarray]]:
+def get_embeddings(conn: sqlite3.Connection) -> list[Tuple[GUID, np.ndarray]]:
     """
     :param conn:
-    :return: List of (url, title, embedding vector) tuples for all entries in the embeddings table
+    :return: List of (guid, embedding vector) tuples for all entries in the embeddings table
     """
-    cursor = conn.execute("SELECT url, title, embedding FROM embeddings")
-    return [(row[0], row[1], np.frombuffer(row[2], dtype=np.float64)) for row in cursor.fetchall()]
+    cursor = conn.execute("SELECT guid, embedding FROM embeddings")
+    return [(row[0], np.frombuffer(row[1], dtype=np.float64)) for row in cursor.fetchall()]
 
 
-def write_embedding(url: str, title: str, embedding: np.ndarray, conn: sqlite3.Connection) -> None:
+def write_embedding(guid: GUID, url: str, embedding: np.ndarray, conn: sqlite3.Connection) -> None:
     blob = embedding.tobytes()
     conn.execute(
-        """INSERT INTO embeddings (url, title, embedding)
+        """INSERT INTO embeddings (guid, url, embedding)
            VALUES (?, ?, ?)
-           ON CONFLICT(url) DO UPDATE
+           ON CONFLICT(guid) DO UPDATE
            SET embedding = ?""",
-        (url, title, blob, blob)
+        (guid, url, blob, blob)
     )
     conn.commit()

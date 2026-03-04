@@ -5,6 +5,8 @@ description = "Spectral clustering for bookmarks"
 requires-python = ">=3.12"
 dependencies = [
     # url fetching encounters ocassional website roadblocks
+    "requests",
+    "beautifulsoup4",
     "selenium",
     "selenium-stealth",
     # LM Studio integration for content extraction
@@ -20,4 +22,9 @@ dependencies = [
 dev = [
     "matplotlib",
     "scipy-stubs~=1.17.0",
+]
+postgres = [
+    "pgserver",
+    "pgvector",
+    "psycopg[binary]",
 ]

@@ -15,7 +15,7 @@ def output_html(clustering: Clustering, file_path: Path):
     # Firefox bookmarks HTML format
     # Reference: https://support.mozilla.org/en-US/kb/import-bookmarks-html-file
 
-    timestamp = int(datetime.now().timestamp() * 1000)  # Firefox uses milliseconds
+    now_timestamp = int(datetime.now().timestamp())
 
     html_lines = [
         '<!DOCTYPE NETSCAPE-Bookmark-file-1>',
@@ -35,7 +35,7 @@ def output_html(clustering: Clustering, file_path: Path):
         escaped_label = escape(cluster.label or "!!! NO LABEL !!!")
 
         # Add folder entry
-        html_lines.append(f'    <DT><H3 ADD_DATE="{timestamp}" LAST_MODIFIED="{timestamp}">{escaped_label}</H3>')
+        html_lines.append(f'    <DT><H3 ADD_DATE="{now_timestamp}" LAST_MODIFIED="{now_timestamp}">{escaped_label}</H3>')
         html_lines.append('    <DL><p>')
 
         # Add bookmarks within the folder
@@ -43,7 +43,8 @@ def output_html(clustering: Clustering, file_path: Path):
             escaped_title = escape(bookmark.title or "!!! NO TITLE !!!")
             escaped_url = escape(bookmark.url or "!!! NO URL !!!")
 
-            html_lines.append(f'        <DT><A HREF="{escaped_url}" ADD_DATE="{timestamp}">{escaped_title}</A>')
+            bookmark_timestamp = int(bookmark.date.timestamp())
+            html_lines.append(f'        <DT><A HREF="{escaped_url}" ADD_DATE="{bookmark_timestamp}">{escaped_title}</A>')
 
         html_lines.append('    </DL><p>')
 

@@ -1,22 +1,21 @@
-from typing import Tuple, NamedTuple
+from typing import NamedTuple
 
 import lmstudio as lms
-import psycopg
+import sqlite3
 import numpy as np
 
+from .bookmark_types import Bookmark, GUID
 from .summarize import Summary
 
 EMBED_MODEL = "jina-embeddings-v5-text-small-clustering"
 
 # Set up as a tuple of lists for easier batch processing
 class EmbeddingSet(NamedTuple):
-    urls: list[str]
-    titles: list[str]
+    guids: list[GUID]
     embeddings: list[np.ndarray]
-    
-    def append(self, url: str, title: str, embedding: list[float] | np.ndarray):
-        self.urls.append(url)
-        self.titles.append(title)
+
+    def append(self, guid: GUID, embedding: list[float] | np.ndarray):
+        self.guids.append(guid)
         self.embeddings.append(np.array(embedding))
 
 def _embed_chunk(summary_batch: list[Summary]) -> list[np.ndarray]:
@@ -45,17 +44,17 @@ def _embed_chunk(summary_batch: list[Summary]) -> list[np.ndarray]:
         logging.error(f"Failed to generate embedding using LM Studio: {e}")
         raise
 
-def embed_all(summaries: list[Summary], conn: psycopg.Connection) -> EmbeddingSet:
+def embed_all(summaries: list[Summary], conn: sqlite3.Connection, bookmarks_by_guid: dict[GUID, Bookmark]) -> EmbeddingSet:
     from .db import get_embeddings, write_embedding
 
     # pd.df.T (pandas dataframe transpose)
-    embeddings = EmbeddingSet([], [], [])
-    for (url, title, embedding) in get_embeddings(conn):
-        embeddings.append(url, title, embedding)
+    embeddings = EmbeddingSet([], [])
+    for (guid, embedding) in get_embeddings(conn):
+        embeddings.append(guid, embedding)
 
     # TODO magic number
     _BATCH_SIZE = 4 # from lms
-    summaries = [summary for summary in summaries if summary.url not in embeddings.urls]
+    summaries = [summary for summary in summaries if summary.guid not in embeddings.guids]
     summary_chunks: list[list[Summary]] = [summaries[i:i+_BATCH_SIZE] for i in range(0, len(summaries), _BATCH_SIZE)]
     del summaries
 
@@ -63,6 +62,6 @@ def embed_all(summaries: list[Summary], conn: psycopg.Connection) -> EmbeddingSe
         summary_chunk: list[Summary] = summary_chunks.pop(0)
         embedding_chunk: list[np.ndarray] = _embed_chunk(summary_chunk)
         for (summary, embedding) in zip(summary_chunk, embedding_chunk):
-            write_embedding(summary.url, summary.title, embedding, conn)
-            embeddings.append(summary.url, summary.title, embedding)
+            write_embedding(summary.guid, summary.url, embedding, conn)
+            embeddings.append(summary.guid, embedding)
     return embeddings
