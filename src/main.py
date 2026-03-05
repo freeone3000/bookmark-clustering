@@ -11,6 +11,7 @@ def main():
     from bookmarks_cluster.link_fetcher import fetch_bookmark_contents
     from bookmarks_cluster.db import db_connect
     from bookmarks_cluster.summarize import llm_extract_all
+    from bookmarks_cluster.screenshot_summarize import screenshot_extract_all
     from bookmarks_cluster.embed import embed_all
     from src.bookmarks_cluster.cluster import cluster
 
@@ -23,10 +24,11 @@ def main():
         logging.info("Fetching bookmarks...")
         bookmarks = fetch_bookmark_contents(load_bookmarks(), conn)
         bookmarks_by_guid = {b.guid: b for b in bookmarks}
-        logging.info("Extracting content...")
-        summaries = llm_extract_all(bookmarks, conn)
+        logging.info("Extracting content from screenshots...")
+        body_summaries = screenshot_extract_all(bookmarks, conn)
+        screenshot_summaries = screenshot_extract_all(bookmarks, conn)
         logging.info("Embedding summaries...")
-        embeddings = embed_all(summaries, conn, bookmarks_by_guid)
+        embeddings = embed_all(body_summaries, conn, bookmarks_by_guid)
         conn.commit()
     except Exception as e:
         conn.rollback()

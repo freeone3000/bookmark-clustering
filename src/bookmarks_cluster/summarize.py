@@ -6,6 +6,7 @@ import lmstudio as lms
 from .bookmark_types import Bookmark, GUID
 
 SUMMARIZATION_MODEL = "phi-3.1-mini-128k-instruct"
+SYSTEM_PROMPT = "You are an expert librarian, doing an initial summarization pass of a list of web pages. Given a screenshot of a web page, you are able to extract the content, purpose, and intended audience of the page. You will return only plain text, free from any tags or other markup."
 
 class Summary(NamedTuple):
     guid: GUID
@@ -41,7 +42,7 @@ def _llm_extract(html: str) -> str:
                 messages=[  # type: ignore
                     {
                         "role": "system",
-                        "content": "You are an expert librarian, doing an initial summarization pass of a list of web pages. Given an HTML page, you are able to extract the content, purpose, and intended audience of the page. You will return only plain text, free from any tags or other markup."
+                        "content": SYSTEM_PROMPT,
                     },
                     {
                         "role": "user",
