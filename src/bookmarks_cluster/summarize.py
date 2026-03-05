@@ -5,7 +5,7 @@ import lmstudio as lms
 
 from .bookmark_types import Bookmark, GUID
 
-SUMMARIZATION_MODEL = "phi-3.1-mini-128k-instruct"
+SUMMARIZATION_MODEL = "qwen/qwen3-vl-8b"
 SYSTEM_PROMPT = "You are an expert librarian, doing an initial summarization pass of a list of web pages. Given a screenshot of a web page, you are able to extract the content, purpose, and intended audience of the page. You will return only plain text, free from any tags or other markup."
 
 class Summary(NamedTuple):
@@ -31,8 +31,8 @@ def _llm_extract(html: str) -> str:
         try:
             client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
-            # Truncate HTML to prevent token overflow; max length found was 4435132, but max token length we have with Phi-3 is 131072
-            max_chars = 130_000 # must also include truncation, system context, and the prompt below.
+            # Truncate HTML to prevent token overflow; max length found was 4435132, but max token length we have with qwen3 is 262000
+            max_chars = 230_000 # must also include truncation, system context, and the prompt below.
             truncated_html = html[:max_chars]
             if len(html) > max_chars:
                 truncated_html += "\n[... content truncated ...]"

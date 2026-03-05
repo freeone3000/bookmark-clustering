@@ -8,8 +8,7 @@ from .bookmark_types import Bookmark, GUID
 from .summarize import Summary
 from .summarize import SYSTEM_PROMPT
 
-VISION_MODEL = "zai-org/glm-4.6v-flash"
-
+VISION_MODEL = "qwen/qwen3-vl-8b"
 
 def _llm_extract_screenshot(screenshot: bytes) -> str:
     """
@@ -39,7 +38,7 @@ def _llm_extract_screenshot(screenshot: bytes) -> str:
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Summarize the content, purpose, and intended audience of the web page shown in this screenshot. Emphasize when a user would re-visit the page.",
+                                "text": "Summarize the content, purpose, and intended audience of the web page shown in this screenshot. Emphasize when a user would re-visit the page. If the page contains media, generalize for the website as a whole, rather than any individual show or featured article.",
                             },
                             {
                                 "type": "image_url",
