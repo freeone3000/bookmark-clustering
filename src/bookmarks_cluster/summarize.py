@@ -14,6 +14,17 @@ class Summary(NamedTuple):
     title: str
     summary: str
 
+def _preprocess_html(html: str) -> str:
+    """
+    Extract readable text content from raw HTML using trafilatura.
+    Falls back to raw HTML if extraction yields nothing.
+    """
+    import trafilatura
+
+    text = trafilatura.extract(html, output_format="txt", include_comments=False)
+    return text if text else html
+
+
 def _llm_extract(html: str) -> str:
     """
     Given an HTML page, uses a local LLM to extract the "meaningful" page contents.
@@ -31,11 +42,12 @@ def _llm_extract(html: str) -> str:
         try:
             client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
-            # Truncate HTML to prevent token overflow; max length found was 4435132, but max token length we have with qwen3 is 262000
+            # Preprocess HTML to readable text, then truncate if needed
+            text = _preprocess_html(html)
             max_chars = 230_000 # must also include truncation, system context, and the prompt below.
-            truncated_html = html[:max_chars]
-            if len(html) > max_chars:
-                truncated_html += "\n[... content truncated ...]"
+            truncated_text = text[:max_chars]
+            if len(text) > max_chars:
+                truncated_text += "\n[... content truncated ...]"
 
             response = client.chat.completions.create(
                 model=SUMMARIZATION_MODEL,
@@ -46,7 +58,7 @@ def _llm_extract(html: str) -> str:
                     },
                     {
                         "role": "user",
-                        "content": f"Summarize the content, purpose, and intended audience of the following HTML:\n\n{truncated_html}"
+                        "content": f"Summarize the content, purpose, and intended audience of the following web page text:\n\n{truncated_text}"
                     }
                 ],
                 temperature=0.3,
