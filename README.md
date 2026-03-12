@@ -21,3 +21,5 @@ This will output to `output/bookmarks_clustered.html`. This can then be imported
 ## Notes
 This currently generates an *exemplar* data point. Outputting embeddings based on the centroid is later work.
 (It will likely involve using in-process Qwen3 rather than remote.)
+
+Look at https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct for transformer-based arch
